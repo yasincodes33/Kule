@@ -63,7 +63,29 @@ Görev dağıtıldığında geliştiricinin makinesinde bir çalışma penceresi
 otomatik klonlanmış çalışma kopyası, ortada gerçek bir PTY üzerine kurulu gömülü terminal, altta
 git araç çubuğu. Terminalde yapılan her şey göreve kalıcı olarak yazılır.
 
-![Masaüstü görev penceresi](docs/images/09-masaustu-gorev-penceresi.png)
+Gömülü terminal gerçek bir PTY olduğu için ajanların kendi etkileşimli arayüzleri olduğu gibi
+çalışır. Aşağıda **Antigravity**, bir analiz görevini Kule'nin terminalinde yürütüp depodaki
+`PaymentController`, `PaymentService` ve `V1__init.sql` dosyalarını okuyarak raporunu yazıyor:
+
+![Antigravity ile analiz görevi](docs/images/09-masaustu-antigravity.png)
+
+Araç, görev penceresinden değiştirilebilir. Aynı görev **Hermes** ile çalıştırıldığında ajan
+kendi araçlarıyla (`search_files`, `read_file`) aynı dosyaları buluyor. Üstteki panelden görevin
+prompt'u düzenlenip kaydedilebilir; değişiklik köprü üzerinden sunucuya yazılır:
+
+![Hermes ile aynı görev](docs/images/10-masaustu-hermes.png)
+
+### Canlı terminal — tarayıcıdan runner makinesine
+
+Runner'ın terminaline tarayıcıdan bağlanmak da bir insan onayından geçer. İstek açıldığında
+yetkili bir kullanıcının onayı beklenir:
+
+![Terminal isteği onayı](docs/images/11-web-terminal-onayi.png)
+
+Onaydan sonra WebSocket bağlantısı kurulur ve runner makinesindeki gerçek kabuk tarayıcıya
+akar. Handshake asıl erişim token'ını değil, tek kullanımlık ve 60 saniye ömürlü bir bilet taşır:
+
+![Canlı web terminali](docs/images/12-web-canli-terminal.png)
 
 ### Runner ve ajan bağlantıları
 

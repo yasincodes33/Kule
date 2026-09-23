@@ -49,7 +49,18 @@ jobs:
           java-version: "21"
           cache: maven
 
+      # Testler RLS'i gercekten dogrulayabilmek icin superuser OLMAYAN bir rolle baglanir;
+      # yerelde bu rolu docker-compose'un init script'i olusturuyor, CI'da elle calistiriyoruz.
+      - name: Create non-superuser test role
+        env:
+          PGPASSWORD: "1234"
+        run: psql -h localhost -U agentsaas -d agentsaas -v ON_ERROR_STOP=1 -f docker/init/01-test-role.sql
+
       - name: Run backend test suite
+        env:
+          TEST_DB_URL: jdbc:postgresql://localhost:5432/agentsaas
+          TEST_DB_USERNAME: agentsaas_app
+          TEST_DB_PASSWORD: agentsaas
         run: ./mvnw --batch-mode --no-transfer-progress test
 
       - name: Upload surefire reports
