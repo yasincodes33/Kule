@@ -1,0 +1,15 @@
+{
+  "name": "agentsaas-local-bridge",
+  "version": "0.1.0",
+  "description": "AgentSaaS platformu için yerel bridge runner — dosya/komut işlemlerini ve canlı terminal oturumlarını WebSocket bridge üzerinden yürütür",
+  "main": "runner.js",
+  "scripts": {
+    "start": "node runner.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

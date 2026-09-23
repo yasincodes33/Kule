@@ -1,0 +1,65 @@
+{
+  "name": "agentsaas-desktop",
+  "version": "0.1.0",
+  "description": "Kule masaüstü uygulaması — runner/bridge bağlantısını arka planda (sistem tepsisinde) tutar, ana pencerede Kule web arayüzünü gösterir, dağıtılan görevleri native bir panelde çalıştırıp tamamlamayı sağlar.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "@homebridge/node-pty-prebuilt-multiarch": "^0.14.1",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "highlight.js": "^11.12.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.kule.desktop",
+    "productName": "Kule",
+    "files": [
+      "main.js",
+      "preload.js",
+      "icon.js",
+      "agentCommands.js",
+      "settings.html",
+      "settings.js",
+      "dashboard.html",
+      "dashboard.js",
+      "task-window.html",
+      "task-window.js",
+      "package.json",
+      "node_modules/@xterm/**/*",
+      "node_modules/@homebridge/**/*",
+      "node_modules/highlight.js/lib/**/*",
+      "node_modules/highlight.js/styles/atom-one-dark.css",
+      "node_modules/highlight.js/package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/@homebridge/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../agentsaas-local-bridge",
+        "to": "agentsaas-local-bridge",
+        "filter": [
+          "bridge.js",
+          "package.json",
+          "node_modules/ws/**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

@@ -1,0 +1,73 @@
+# ---------------------------------------------------------------------------
+# Derleme ciktilari
+# ---------------------------------------------------------------------------
+target/
+!**/src/main/**/target/
+!**/src/test/**/target/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+dist/
+dist-ssr/
+*.jar
+*.war
+*.class
+
+# ---------------------------------------------------------------------------
+# Bagimliliklar
+# ---------------------------------------------------------------------------
+node_modules/
+.mvn/wrapper/maven-wrapper.jar
+
+# ---------------------------------------------------------------------------
+# Yerel yapilandirma ve gizli bilgiler
+# (ornek dosyalar depoda: *.example.json, .env.example)
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.local
+src/main/resources/application-local.properties
+!src/main/resources/application-local.properties.example
+application-local.yml
+agentsaas-local-bridge/config.json
+agentsaas-local-bridge/workspace/
+agentsaas-desktop/config.json
+
+# ---------------------------------------------------------------------------
+# IDE ve editor
+# ---------------------------------------------------------------------------
+.idea/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.factorypath
+.settings/
+.springBeans
+.sts4-cache
+.apt_generated
+.vscode/
+.claude/
+.github/modernize/
+/nbproject/private/
+/nbbuild/
+/nbdist/
+/.nb-gradle/
+
+# ---------------------------------------------------------------------------
+# Isletim sistemi ve gecici dosyalar
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+logs/
+*.tmp
+~$*
+
+# ---------------------------------------------------------------------------
+# Yerel calisma notlari (depoya alinmaz)
+# ---------------------------------------------------------------------------
+/notes/

@@ -1,0 +1,179 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: AgentSaasAplication
+  datasource:
+    url: jdbc:postgresql://localhost:5432/agentsaas
+    username: ${DB_USERNAME:agentsaas}
+    password: ${DB_PASSWORD:1234}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    out-of-order: false
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      repositories:
+        enabled: false
+
+  # Varsayılanlar yerel Mailhog'a (docker/docker-compose.yml) göre — kimlik
+  # doğrulaması/TLS yok. Gerçek bir dağıtımda TÜMÜ env var'larla gerçek bir SMTP sağlayıcısına
+  # (SendGrid/SES/kurumsal relay) yönlendirilmeli: SMTP_AUTH=true + SMTP_STARTTLS=true +
+  # SMTP_USERNAME/SMTP_PASSWORD.
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:false}
+          starttls:
+            enable: ${SMTP_STARTTLS:false}
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+  # TaskCreatedEvent Kafka üzerinden yayınlanıp tüketiliyor. Key/value serileştirme
+  # bilinçli olarak düz String: Spring Kafka'nın JsonSerializer'ı Jackson 2
+  # (com.fasterxml.jackson) temelli, bu proje ise Jackson 3 (tools.jackson) kullanıyor.
+  # JSON encode/decode bu yüzden projenin kendi ObjectMapper'ıyla elle yapılıyor
+  # (bkz. TaskCreatedEventKafkaBridge / TaskDispatchListener.onTaskCreatedFromKafka).
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: agentsaas-task-dispatch
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+logging:
+  level:
+    # Üretim varsayılanı INFO: DEBUG hem gereksiz log hacmi üretir hem de normalde
+    # görünmeyecek iç ayrıntıları sızdırabilir. DEBUG yalnızca `local` profilinde
+    # (application-local.properties) açık.
+    com.AgentSaasAplication: INFO
+app:
+  # Şifre sıfırlama/davet e-postalarındaki bağlantıların oluşturulması için — bkz.
+  # AuthenticationService.requestPasswordReset, MembershipService.inviteMember.
+  frontend:
+    base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
+  mail:
+    # Gerçek e-posta altyapısı — yerelde docker/docker-compose.yml'deki
+    # Mailhog'a (kimlik doğrulamasız, TLS'siz, localhost:1025) gönderiyor; gerçek bir dağıtımda
+    # SMTP_* env var'larıyla gerçek bir sağlayıcıya yönlendirilmeli.
+    from: ${MAIL_FROM:kule@example.com}
+  cors:
+    # Yaygın yerel geliştirme sunucusu portları varsayılan; gerçek frontend origin'i
+    # CORS_ALLOWED_ORIGINS ile (virgülle ayrılmış liste) verilmeli.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,http://localhost:4200}
+  rate-limit:
+    # /api/v1/auth/** için Redis'te IP başına sabit pencere sayacı
+    # (bkz. common.security.AuthRateLimitFilter). Redis erişilemezse fail-open.
+    login-max-attempts: ${AUTH_LOGIN_MAX_ATTEMPTS:5}   # 5 dakikalık pencerede
+    auth-max-requests: ${AUTH_MAX_REQUESTS:20}         # register/refresh, 1 dakikalık pencerede
+    # Virgülle ayrılmış, X-Forwarded-For'una GÜVENİLECEK ters proxy/LB
+    # IP'lerinin listesi — varsayılan BOŞ (bu proje henüz bir proxy arkasında çalışmıyor), bu
+    # durumda header tamamen yok sayılır ve yalnızca gerçek TCP bağlantı IP'si kullanılır. Gerçek
+    # bir dağıtımda önündeki proxy'nin IP'si buraya eklenmeden header'a asla güvenilmemeli
+    # (aksi halde bir saldırgan header'ı spoof'layıp rate limit'i IP başına sınırsızca atlayabilir).
+    trusted-proxies: ${AUTH_RATE_LIMIT_TRUSTED_PROXIES:}
+  security:
+    # API_KEY_SECRET ortam değişkeninden verilmek ZORUNDADIR; verilmezse uygulama
+    # "Could not resolve placeholder" ile başlangıçta durur. Varsayılan bir değer
+    # bırakmak, kaynak kodu sızdığında tüm agent API anahtarlarının çözülebilmesi demek
+    # olurdu. `local` profilinin kendi değeri application-local.properties'te, test
+    # context'ininki AgentSaasAplicationApplicationTests'teki @TestPropertySource'ta
+    # tanımlıdır. Yalnızca app.vault.enabled=false (varsayılan) iken kullanılır — bkz.
+    # LocalAesApiKeyCipher / VaultApiKeyCipher.
+    api-key-secret: ${API_KEY_SECRET}
+    # ApiKeyCipher ya yerel AES (varsayılan; Vault çalıştırmaya gerek yok) ya da gerçek
+    # bir HashiCorp Vault (Transit secrets engine,
+    # çalıştırmaya gerek yok) ya da gerçek bir HashiCorp Vault (Transit secrets engine,
+    # docker/docker-compose.yml) kullanabiliyor. true olduğunda `token` ZORUNLU hale gelir (yoksa
+    # API_KEY_SECRET/JWT_SECRET ile AYNI gerekçeyle "Could not resolve placeholder" ile fail-fast).
+    # Değişken adları BİLİNÇLİ olarak Vault'un kendi CLI'ının standart adlarıyla (VAULT_ADDR/
+    # VAULT_TOKEN) aynı.
+    enabled: ${VAULT_ENABLED:false}
+    address: ${VAULT_ADDR:http://localhost:8200}
+    token: ${VAULT_TOKEN}
+    transit-key-name: ${VAULT_TRANSIT_KEY_NAME:agentsaas-api-keys}
+  jwt:
+    # Self-issued JWT (HS256, tek paylaşılan sır). API_KEY_SECRET ile aynı gerekçe:
+    # varsayılansız, ortam değişkeni zorunlu; `local` profilinin ayrı varsayılanı
+    # application-local.properties'te. Base64 ve en az 256 bit (32 byte) olmalı — HS256'nın
+    # asgari anahtar uzunluğu, aksi halde NimbusJwtEncoder/Decoder WeakKeyException fırlatır.
+    secret: ${JWT_SECRET}
+    access-token-ttl-minutes: ${JWT_ACCESS_TOKEN_TTL_MINUTES:60}
+    refresh-token-ttl-days: ${JWT_REFRESH_TOKEN_TTL_DAYS:30}
+  cookie:
+    # Refresh token'ı taşıyan httpOnly cookie'nin Secure bayrağı — üretimde
+    # (HTTPS) her zaman true olmalı, aksi halde tarayıcı cookie'yi hiç göndermez. `local`
+    # profilinde (http://localhost, TLS yok) application-local.properties'te false'a çekiliyor.
+    secure: ${COOKIE_SECURE:true}
+  auth:
+    # refresh_token_records'ta artık DELETE eden bir job var — revoke
+    # edilmiş/süresi dolmuş satırlar bu kadar gün sonra kalıcı silinir (bkz. RefreshTokenPurgeScheduler).
+    refresh-token-retention-days: ${AUTH_REFRESH_TOKEN_RETENTION_DAYS:7}
+    refresh-token-purge-interval-ms: ${AUTH_REFRESH_TOKEN_PURGE_INTERVAL_MS:86400000}
+  notification:
+    # Okunmuş bildirimler bu kadar gün sonra kalıcı silinir (bkz.
+    # NotificationRetentionScheduler) — audit_log_entries kasıtlı olarak bu politikaya dahil değil.
+    retention-days: ${NOTIFICATION_RETENTION_DAYS:90}
+    retention-check-interval-ms: ${NOTIFICATION_RETENTION_CHECK_INTERVAL_MS:86400000}
+  claude:
+    default-model: ${CLAUDE_MODEL:claude-sonnet-5}
+    budget-model: ${CLAUDE_BUDGET_MODEL:claude-haiku-4-5}
+    reasoning-model: ${CLAUDE_REASONING_MODEL:claude-opus-4-8}
+  chatgpt:
+    default-model: ${CHATGPT_MODEL:gpt-5.4}
+    budget-model: ${CHATGPT_BUDGET_MODEL:gpt-5.4-nano}
+    reasoning-model: ${CHATGPT_REASONING_MODEL:o4-mini}
+  gemini:
+    default-model: ${GEMINI_MODEL:gemini-3.7-flash}
+    free-tier-model: ${GEMINI_FREE_MODEL:gemini-3.5-flash-lite}
+    pro-model: ${GEMINI_PRO_MODEL:gemini-3.1-pro-preview}
+  agent:
+    stale-threshold-seconds: 300
+    health-check-interval-ms: 60000
+  approval:
+    expiration-check-interval-ms: 60000
+    # git_push/run_command her zaman riskli sayılır (kod içinde sabit); write_file
+    # yalnızca aşağıdaki path'lerden biriyle eşleşirse riskli sayılır (prefix/suffix/tam eşleşme).
+    protected-write-paths: .github/,.env,pom.xml,application.yml,application.properties
+    # Riskli bir araç çağrısı için worker thread'in onayı beklerken ne kadar bloke kalacağı —
+    # git_push'ın kendi SLOW zaman aşımıyla (DurationClass) tutarlı tutuldu. ApprovalRequest'in
+    # kendi 24 saatlik TTL'inden (ApprovalService.DEFAULT_APPROVAL_TTL) bilinçli olarak ayrı.
+    tool-call-wait-timeout-ms: 600000
+  task:
+    max-retries: 3
+    # Gerçek bir uçtan uca testte bulundu: runner, DISPATCHED/RUNNING bir görevi hiç
+    # yanıtlamadan koparsa, task hiçbir otomatik mekanizma olmadan sonsuza dek asılı kalıyordu
+    # (retry yalnızca FAILED'ten çalışıyor). Bu tarama runner'ı OFFLINE olan asılı görevleri
+    # FAILED'e çekip yeniden denenebilir hale getiriyor — bkz. StaleDispatchScheduler.
+    stale-dispatch-check-interval-ms: 60000
+    stale-dispatch-threshold-seconds: 120
+    # TaskCreatedEventOutboxScheduler'ın yayınlanmamış outbox satırlarını (Kafka'ya
+    # yayını AFTER_COMMIT hızlı yolunda başarısız olmuş TaskCreatedEvent'ler) ne sıklıkla
+    # yeniden deneyeceği — bkz. TaskCreatedEventOutboxService/TaskCreatedEventKafkaBridge.
+    outbox-recheck-interval-ms: 30000

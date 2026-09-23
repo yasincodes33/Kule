@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<title>Kule Runner Ayarları</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: ui-monospace, "Segoe UI", system-ui, sans-serif;
+    background: #14120f;
+    color: #e8e2d6;
+    padding: 20px 24px 28px;
+    margin: 0;
+  }
+  h2 { margin: 0 0 4px; font-size: 16px; letter-spacing: .02em; }
+  .sub { color: #8a8478; font-size: 12px; margin-bottom: 18px; }
+  label {
+    display: block;
+    margin-top: 14px;
+    font-size: 10.5px;
+    color: #a39c8d;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+  input[type="text"], input[type="password"] {
+    width: 100%;
+    padding: 9px 10px;
+    margin-top: 5px;
+    background: #1d1a15;
+    border: 1px solid #35302a;
+    color: #e8e2d6;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  input:focus { outline: 1px solid #e8a33d; }
+  .row { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+  .row label { margin: 0; text-transform: none; font-size: 12.5px; color: #cfc8b8; letter-spacing: 0; }
+  button {
+    margin-top: 22px;
+    padding: 10px 18px;
+    background: #e8a33d;
+    color: #171207;
+    border: none;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 12.5px;
+    letter-spacing: .03em;
+    cursor: pointer;
+    width: 100%;
+  }
+  button:hover { background: #f0b25a; }
+  #status { margin-top: 12px; font-size: 12px; color: #7dd39a; min-height: 16px; }
+</style>
+</head>
+<body>
+  <h2>Kule Runner Ayarları</h2>
+  <div class="sub">Bu bilgisayarı bir runner olarak bağlar — organizasyondaki bir yönetici runner'ı kaydedip bir bridge token ürettikten sonra buraya girin.</div>
+
+  <label>Backend WebSocket Adresi</label>
+  <input type="text" id="backendUrl" placeholder="ws://localhost:8081/ws/agent-bridge" />
+
+  <label>Kule Web Adresi</label>
+  <input type="text" id="frontendUrl" placeholder="http://localhost:5173" />
+
+  <label>Organizasyon ID</label>
+  <input type="text" id="organizationId" placeholder="00000000-0000-0000-0000-000000000000" />
+
+  <label>Bridge Token</label>
+  <input type="password" id="bridgeToken" />
+
+  <label>Proje Kökü (yerel klasör)</label>
+  <input type="text" id="projectRoot" placeholder="C:\Kullanıcılar\...\projem" />
+
+  <div class="row">
+    <input type="checkbox" id="requireConfirmation" />
+    <label for="requireConfirmation">Her yazma/komut için onay iste</label>
+  </div>
+  <div class="row">
+    <input type="checkbox" id="startAtLogin" />
+    <label for="startAtLogin">Oturum açılışında otomatik başlat</label>
+  </div>
+
+  <button id="save">Kaydet ve Bağlan</button>
+  <div id="status"></div>
+
+  <script src="settings.js"></script>
+</body>
+</html>

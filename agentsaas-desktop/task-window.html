@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Kule — Görevi çalıştır</title>
+<link rel="stylesheet" href="node_modules/@xterm/xterm/css/xterm.css">
+<!-- Sözdizimi renkleri: vurgulama ANA SÜREÇTE yapılıp `hljs-*` sınıflı HTML olarak geliyor
+     (renderer'da nodeIntegration kapalı, require yok) — burada yalnızca teması yüklüyoruz. -->
+<link rel="stylesheet" href="node_modules/highlight.js/styles/atom-one-dark.css">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 10px 12px 12px;
+    background: #0b0e14;
+    color: #d6dee8;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    height: 100vh;
+  }
+
+  /* --- üst başlık --- */
+  .head { display: flex; align-items: center; gap: 10px; }
+  .head h1 { font-size: 14px; margin: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chip {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .05em;
+    padding: 3px 8px; border-radius: 10px; white-space: nowrap;
+    background: #232a36; color: #8b96a8;
+  }
+  .chip.ready { background: #16321f; color: #7dd39a; }
+  .chip.prep { background: #3a3220; color: #f5a623; }
+  .chip.bad { background: #3a1f1f; color: #e57373; }
+
+  /* --- prompt (katlanabilir) --- */
+  details.prompt { border: 1px solid #232a36; border-radius: 4px; background: #11151d; }
+  details.prompt > summary {
+    cursor: pointer; padding: 6px 10px; font-size: 11px; color: #8b96a8;
+    text-transform: uppercase; letter-spacing: .04em; user-select: none;
+  }
+  details.prompt[open] > summary { border-bottom: 1px solid #232a36; }
+  .prompt-body { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+
+  textarea, select, input {
+    width: 100%;
+    background: #11151d; color: #d6dee8;
+    border: 1px solid #232a36; border-radius: 4px;
+    padding: 7px 8px; font-family: inherit; font-size: 13px;
+  }
+  textarea { resize: vertical; }
+
+  /* --- ajan çubuğu --- */
+  .agent-bar { display: flex; gap: 6px; align-items: center; }
+  .agent-bar select { flex: 1; min-width: 0; }
+  .mode { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #8b96a8; white-space: nowrap; }
+
+  button {
+    background: #f5a623; color: #1a1206; border: none; border-radius: 4px;
+    padding: 7px 12px; font-family: inherit; font-weight: 600; font-size: 12px;
+    cursor: pointer; white-space: nowrap;
+  }
+  button.secondary { background: #232a36; color: #d6dee8; font-weight: 500; }
+  button.danger { background: #c0392b; color: #fff; }
+  button:disabled { opacity: .45; cursor: default; }
+
+  /* --- çalışma alanı: solda dosya ağacı, sağda terminal/kod --- */
+  .work { flex: 1; min-height: 180px; display: flex; gap: 8px; }
+  .work > aside {
+    width: 240px; flex: none; display: flex; flex-direction: column;
+    border: 1px solid #232a36; border-radius: 4px; background: #0d1119; overflow: hidden;
+  }
+  body.no-files .work > aside { display: none; }
+  .files-head {
+    display: flex; align-items: center; gap: 6px; padding: 5px 8px;
+    border-bottom: 1px solid #232a36; font-size: 10px; text-transform: uppercase;
+    letter-spacing: .05em; color: #8b96a8;
+  }
+  .files-head .root { flex: 1; min-width: 0; text-transform: none; letter-spacing: 0; color: #6f7a8c;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .files-head button { padding: 2px 6px; font-size: 10px; }
+  #tree { flex: 1; overflow: auto; padding: 4px 0 8px; }
+  .node {
+    display: flex; align-items: center; gap: 4px; padding: 2px 8px;
+    cursor: pointer; white-space: nowrap; font-size: 12px; color: #c3ccd9;
+  }
+  .node:hover { background: #161c27; }
+  .node.on { background: #1d2532; color: #f5a623; }
+  .node .tw { width: 10px; flex: none; color: #6f7a8c; font-size: 9px; }
+  .node .nm { overflow: hidden; text-overflow: ellipsis; }
+  .node.dir .nm { color: #9fb2cc; }
+  .tree-msg { padding: 8px; color: #6f7a8c; font-size: 11px; }
+
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .tabs { display: flex; gap: 3px; overflow-x: auto; }
+  .tab {
+    display: flex; align-items: center; gap: 6px; padding: 4px 9px; cursor: pointer;
+    font-size: 11px; color: #8b96a8; background: #11151d;
+    border: 1px solid #232a36; border-bottom: none; border-radius: 4px 4px 0 0; white-space: nowrap;
+  }
+  .tab.on { background: #0b0e14; color: #d6dee8; }
+  .tab .x { color: #6f7a8c; font-size: 12px; line-height: 1; }
+  .tab .x:hover { color: #e57373; }
+
+  .pane {
+    flex: 1; min-height: 120px;
+    background: #0b0e14; border: 1px solid #232a36; border-radius: 0 4px 4px 4px; padding: 6px;
+  }
+  .pane.hidden { display: none; }
+  #code { padding: 0; overflow: auto; }
+  .code-row { display: flex; min-height: 100%; font-size: 12.5px; line-height: 1.5; }
+  .gutter {
+    position: sticky; left: 0; flex: none; padding: 6px 8px; text-align: right;
+    color: #4d566a; background: #0b0e14; border-right: 1px solid #1a2130; user-select: none;
+  }
+  .code-row pre { margin: 0; padding: 6px 10px; }
+  .code-row pre, .gutter { font-family: inherit; font-size: inherit; line-height: inherit; }
+  .code-row code { white-space: pre; background: none; padding: 0; }
+  .code-msg { padding: 10px; color: #8b96a8; font-size: 12px; }
+
+  /* --- git + alt bar --- */
+  .git-row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+  .git-row button { padding: 5px 9px; font-size: 11px; }
+  .git-row input { flex: 1; min-width: 110px; padding: 5px 8px; font-size: 12px; }
+  .foot { display: flex; gap: 6px; align-items: center; }
+  .foot input { flex: 1; }
+  .note { color: #8b96a8; font-size: 11px; min-height: 14px; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <h1 id="title">Görev yükleniyor…</h1>
+    <button class="secondary" id="toggle-files" style="padding:4px 9px;font-size:11px;">Dosyalar</button>
+    <span class="chip" id="state-chip">hazırlanıyor</span>
+  </div>
+
+  <details class="prompt" id="prompt-details">
+    <summary>Prompt — görüntüle / düzenle</summary>
+    <div class="prompt-body">
+      <textarea id="prompt" rows="4"></textarea>
+      <div style="display:flex; justify-content:flex-end;">
+        <button class="secondary" id="prompt-save">Kaydet</button>
+      </div>
+    </div>
+  </details>
+
+  <div class="agent-bar">
+    <select id="tool"></select>
+    <label class="mode"><input type="checkbox" id="interactive" checked style="width:auto;"> interaktif</label>
+    <button id="start">Ajanı Başlat</button>
+    <button class="secondary" id="shell">Shell</button>
+  </div>
+  <div class="note" id="note"></div>
+
+  <div class="work">
+    <aside>
+      <div class="files-head">
+        <span>Proje</span>
+        <span class="root" id="files-root" title=""></span>
+        <button class="secondary" id="files-refresh" title="Ağacı yenile">⟳</button>
+      </div>
+      <div id="tree"><div class="tree-msg">Proje hazırlanıyor…</div></div>
+    </aside>
+
+    <div class="main">
+      <div class="tabs" id="tabs"></div>
+      <div class="pane" id="terminal"></div>
+      <div class="pane hidden" id="code"></div>
+    </div>
+  </div>
+
+  <div class="git-row">
+    <button class="secondary" id="git-status">Status</button>
+    <button class="secondary" id="git-diff">Diff</button>
+    <button class="secondary" id="git-log">Log</button>
+    <button class="secondary" id="git-branches">Dallar</button>
+    <input id="git-arg" placeholder="commit mesajı / dal adı">
+    <button class="secondary" id="ai-commit" title="git diff'ten commit mesajı üret (API ajanı gerekir)">✦ Mesaj</button>
+    <button class="secondary" id="git-add">Ekle (.)</button>
+    <button class="secondary" id="git-commit">Commit</button>
+    <button class="secondary" id="git-checkout">Checkout</button>
+    <button class="secondary" id="git-branch">Yeni Dal</button>
+    <button class="secondary" id="git-merge">Merge</button>
+    <button class="secondary" id="git-pull">Pull</button>
+    <button id="git-push">Push</button>
+  </div>
+
+  <div class="foot">
+    <input id="message" placeholder="Sonuç açıklaması — ne yapıldı / neden başarısız oldu">
+    <label class="mode" title="Tamamlamadan önce değişiklikleri bir bulut modeline incelet (API ajanı gerekir)">
+      <input type="checkbox" id="review-on-complete" checked style="width:auto;"> incele
+    </label>
+    <button class="danger" id="fail">Başarısız</button>
+    <button id="complete">Tamamlandı</button>
+  </div>
+
+  <script src="node_modules/@xterm/xterm/lib/xterm.js"></script>
+  <script src="node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
+  <script src="task-window.js"></script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+# Kule — yerel geliştirme ve test altyapısı.
+#
+#   docker compose -f docker/docker-compose.yml up -d
+#
+# Uygulamanın kendisi bu dosyada değildir; backend `./mvnw spring-boot:run` ile ayrı çalıştırılır.
+services:
+  postgres:
+    image: postgres:18
+    container_name: agentsaas-postgres
+    environment:
+      POSTGRES_DB: agentsaas
+      POSTGRES_USER: agentsaas
+      POSTGRES_PASSWORD: agentsaas
+    ports:
+      # 5433 bilinçli bir seçim: 5432'de ayrıca yerel (native) bir PostgreSQL kurulumu varsa iki
+      # sunucu aynı portu dinler ve bir bağlantının hangisine düştüğü belirsizleşir. Entegrasyon
+      # testleri bu konteynere bağlanır (bkz. src/test/resources/application-test.properties).
+      - "5433:5432"
+    volumes:
+      - agentsaas-postgres-data:/var/lib/postgresql
+      # Testlerin bağlandığı rol SUPERUSER olmamalıdır; superuser Row Level Security'yi baypas
+      # eder ve izolasyon testleri yanlışlıkla geçer.
+      - ./init:/docker-entrypoint-initdb.d:ro
+
+  redis:
+    image: redis:7
+    container_name: agentsaas-redis
+    ports:
+      - "6379:6379"
+
+  # Şifre sıfırlama ve davet e-postalarını yerelde yakalar: SMTP 1025'te dinler, yakalanan
+  # e-postalar 8025'teki web arayüzünde görüntülenir. application.yml'deki spring.mail
+  # varsayılanları (host=localhost, port=1025, kimlik doğrulama ve TLS kapalı) bu servisle uyumlu.
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: agentsaas-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  # ApiKeyCipher'ın Vault destekli uygulaması (Transit secrets engine) için. Dev modu tek node,
+  # bellek içi ve TLS'sizdir; buradaki sabit root token yalnızca yerel kullanım içindir, gerçek
+  # bir dağıtımda AppRole / Kubernetes auth gibi kısa ömürlü bir yöntem kullanılmalıdır.
+  # Etkinleştirmek için backend VAULT_ENABLED=true ve VAULT_TOKEN=agentsaas-dev-root-token ile
+  # başlatılır.
+  vault:
+    image: hashicorp/vault:1.18
+    container_name: agentsaas-vault
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: agentsaas-dev-root-token
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+
+  # Tek node KRaft modu (ZooKeeper yok). application.yml'deki KAFKA_BOOTSTRAP_SERVERS
+  # (varsayılan localhost:9092) ile uyumludur.
+  kafka:
+    image: apache/kafka:3.9.0
+    container_name: agentsaas-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+volumes:
+  agentsaas-postgres-data:

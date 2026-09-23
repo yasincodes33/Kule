@@ -1,0 +1,28 @@
+# Yerel gelistirme profili ornegi.
+#
+# Bu dosyayi ayni dizine `application-local.properties` olarak kopyalayin ve asagidaki iki
+# anahtari kendiniz uretin. Gercek dosya surum kontrolune alinmaz.
+#
+#   openssl rand -base64 32
+#
+# Uygulamayi bu profille calistirmak icin:
+#   ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+
+# application.yml'de api-key-secret varsayilansizdir (uretimde zorunlu ortam degiskeni).
+# Buradaki deger YALNIZCA local profilde gecerlidir; local disindaki her profil
+# API_KEY_SECRET'i ortam degiskeninden almak zorundadir, aksi halde uygulama baslangicta
+# hata verir.
+app.security.api-key-secret=BURAYA_BASE64_32_BYTE_DEGER
+
+# Ayni gerekce JWT_SECRET icin de gecerli: yalnizca local profilde gecerli bir varsayilan,
+# diger profiller degeri ortam degiskeninden alir. HS256 icin en az 256 bit (32 byte)
+# base64 gerekir.
+app.jwt.secret=BURAYA_BASE64_32_BYTE_DEGER
+
+# Yerelde HTTPS yok (http://localhost:8081) - Secure cookie tarayici tarafindan
+# hic gonderilmez, refresh akisi kirilir. Yalnizca local profilde false.
+app.cookie.secure=false
+
+# application.yml'de varsayilan INFO; ayrintili log yalnizca gelistirme icin burada
+# DEBUG'a cekiliyor.
+logging.level.com.AgentSaasAplication=DEBUG

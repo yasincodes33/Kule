@@ -1,0 +1,10 @@
+{
+  "backendUrl": "ws://localhost:8081/ws/agent-bridge",
+  "organizationId": "<organizationId>",
+  "bridgeToken": "<POST /api/v1/runners/{runnerId}/bridge-token ile üretilen token>",
+  "projectRoot": "C:\\path\\to\\your\\workspace",
+  "requireConfirmation": false,
+  "heartbeatIntervalMs": 30000,
+  "commandTimeoutMs": 30000,
+  "gitNetworkTimeoutMs": 600000
+}
